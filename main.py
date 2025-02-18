@@ -14,6 +14,8 @@ class Board:
         self.left = 50
         self.top = 50
         self.cell_size = 50
+        self.font_size = int(self.cell_size / 1.5)
+        self.font = pygame.font.SysFont('notosans', self.font_size)
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -42,7 +44,6 @@ class Board:
             self.board[y][x] = 1 - self.board[y][x]
             print(x, y)
         elif board_name == "board2":
-            # Переключаем состояние ячейки на второй сетке
             self.board2[y][x] = 1 - self.board2[y][x]
             print(x + 10, y)
 
@@ -53,6 +54,7 @@ class Board:
             self.on_click(board_name, x, y)
 
     def render(self, screen):
+        letters = ["А", "Б", "В", "Г", "Д", "Е", "Ё", "Ж", "З", "И"]
         for y in range(self.height):
             for x in range(self.width):
                 # Рисуем первую сетку
@@ -62,23 +64,48 @@ class Board:
                     self.cell_size,
                     self.cell_size
                 )
-                pygame.draw.rect(screen, (255, 255, 255), rect1, 1)
-
-                # Рисуем вторую сетку (со сдвигом вправо)
+                pygame.draw.rect(screen, (0, 0, 0), rect1, 1)
                 rect2 = pygame.Rect(
                     self.left + x * self.cell_size + 13 * self.cell_size,
                     self.top + y * self.cell_size,
                     self.cell_size,
                     self.cell_size
                 )
-                pygame.draw.rect(screen, (255, 255, 255), rect2, 1)
+                pygame.draw.rect(screen, (0, 0, 0), rect2, 1)
 
+            if y < 10:
+                num_ver = self.font.render(str(y + 1), True, (0, 0, 0))
+                letters_hor = self.font.render(letters[y], True, (0, 0, 0))
+                num_ver_width = num_ver.get_width()
+                num_ver_height = num_ver.get_height()
+                letters_hor_width = letters_hor.get_width()
+
+                # цифры слева от таблицы 1
+                screen.blit(num_ver,
+                            (self.left - (self.cell_size // 2 + num_ver_width // 2),
+                            self.top + y * self.cell_size + (self.cell_size // 2 - num_ver_height // 2))
+                            )
+                # буквы над таблицей 1
+                screen.blit(letters_hor,
+                            (self.left + y * self.cell_size + self.cell_size // 2 - letters_hor_width // 2,
+                            self.top - num_ver_height)
+                            )
+                # цифры слева от таблицы 2
+                screen.blit(num_ver,
+                            (self.left - (self.cell_size // 2 + num_ver_width // 2) + self.cell_size * 13,
+                             self.top + y * self.cell_size + (self.cell_size // 2 - num_ver_height // 2))
+                            )
+                # буквы над таблицей 2
+                screen.blit(letters_hor,
+                            (self.left + y * self.cell_size + self.cell_size // 2 - letters_hor_width // 2 + self.cell_size * 13,
+                             self.top - num_ver_height)
+                            )
 
 
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.display.set_mode(size)
-    pygame.display.set_caption("Две сетки с кликами")
+    pygame.display.set_caption("Морской бой")
     board = Board(10, 10)
 
     running = True
@@ -90,7 +117,7 @@ if __name__ == "__main__":
                 pos = event.pos
                 board.get_click(pos)
 
-        screen.fill((0, 0, 0))  # Очистка экрана черным цветом
+        screen.fill((200, 200, 200))  # Очистка экрана черным цветом
         board.render(screen)   # Отрисовка сетки и состояния ячеек
         pygame.display.flip()  # Обновление экрана
 
