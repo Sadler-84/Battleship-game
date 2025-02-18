@@ -1,8 +1,9 @@
 import pygame
+import sys
+import os
 
 # Размер окна
-size = width, height = 1250, 600
-
+size = width, height = 1400, 800
 
 class Board:
     def __init__(self, width, height):
@@ -11,11 +12,27 @@ class Board:
         # Состояние ячеек: 1 - пустая, 0 - занятая
         self.board = [[1] * width for _ in range(height)]
         self.board2 = [[1] * width for _ in range(height)]
-        self.left = 50
-        self.top = 50
+        self.left = 100
+        self.top = 100
         self.cell_size = 50
         self.font_size = int(self.cell_size / 1.5)
         self.font = pygame.font.SysFont('notosans', self.font_size)
+        self.pause = False  # Добавляем переменную pause в класс Board
+
+    def load_image(self, name, colorkey=None):
+        fullname = os.path.join('data', name)
+        if not os.path.isfile(fullname):
+            print(f"Файл с изображением '{fullname}' не найден")
+            sys.exit()
+        image = pygame.image.load(fullname)
+        if colorkey is not None:
+            image = image.convert()
+            if colorkey == -1:
+                colorkey = image.get_at((0, 0))
+            image.set_colorkey(colorkey)
+        else:
+            image = image.convert_alpha()
+        return image
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -41,11 +58,13 @@ class Board:
 
     def on_click(self, board_name, x, y):
         if board_name == "board1":
-            self.board[y][x] = 1 - self.board[y][x]
-            print(x, y)
+            # Переключаем состояние ячейки (пустая/занятая)
+            self.board[y][x] = 0 if self.board[y][x] == 1 else 1
+            print(f"Клик по первой сетке: {x}, {y}")
         elif board_name == "board2":
-            self.board2[y][x] = 1 - self.board2[y][x]
-            print(x + 10, y)
+            # Переключаем состояние ячейки (пустая/занятая)
+            self.board2[y][x] = 0 if self.board2[y][x] == 1 else 1
+            print(f"Клик по второй сетке: {x + 10}, {y}")
 
     def get_click(self, mouse_pos):
         cell_coords = self.get_cell(mouse_pos)
@@ -55,6 +74,7 @@ class Board:
 
     def render(self, screen):
         letters = ["А", "Б", "В", "Г", "Д", "Е", "Ё", "Ж", "З", "И"]
+
         for y in range(self.height):
             for x in range(self.width):
                 # Рисуем первую сетку
@@ -65,6 +85,7 @@ class Board:
                     self.cell_size
                 )
                 pygame.draw.rect(screen, (0, 0, 0), rect1, 1)
+
                 rect2 = pygame.Rect(
                     self.left + x * self.cell_size + 13 * self.cell_size,
                     self.top + y * self.cell_size,
@@ -73,40 +94,59 @@ class Board:
                 )
                 pygame.draw.rect(screen, (0, 0, 0), rect2, 1)
 
-            if y < 10:
+
+            if y < len(letters):
                 num_ver = self.font.render(str(y + 1), True, (0, 0, 0))
                 letters_hor = self.font.render(letters[y], True, (0, 0, 0))
                 num_ver_width = num_ver.get_width()
                 num_ver_height = num_ver.get_height()
                 letters_hor_width = letters_hor.get_width()
 
-                # цифры слева от таблицы 1
+                # Цифры слева от таблицы 1
                 screen.blit(num_ver,
                             (self.left - (self.cell_size // 2 + num_ver_width // 2),
-                            self.top + y * self.cell_size + (self.cell_size // 2 - num_ver_height // 2))
+                             self.top + y * self.cell_size + (self.cell_size // 2 - num_ver_height // 2))
                             )
-                # буквы над таблицей 1
+                # Буквы над таблицей 1
                 screen.blit(letters_hor,
                             (self.left + y * self.cell_size + self.cell_size // 2 - letters_hor_width // 2,
-                            self.top - num_ver_height)
+                             self.top - num_ver_height)
                             )
-                # цифры слева от таблицы 2
+
+                # Цифры слева от таблицы 2
                 screen.blit(num_ver,
                             (self.left - (self.cell_size // 2 + num_ver_width // 2) + self.cell_size * 13,
                              self.top + y * self.cell_size + (self.cell_size // 2 - num_ver_height // 2))
                             )
-                # буквы над таблицей 2
+                # Буквы над таблицей 2
                 screen.blit(letters_hor,
-                            (self.left + y * self.cell_size + self.cell_size // 2 - letters_hor_width // 2 + self.cell_size * 13,
+                            (self.left + y * self.cell_size +
+                             self.cell_size // 2 - letters_hor_width // 2 +
+                             self.cell_size * 13,
                              self.top - num_ver_height)
                             )
 
 
+class Ships:
+    def __init__(self):
+        self.ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
+        self.hor_ver = 0
+
+    def place_a_ship(self):
+        """Функция по размещению кораблей"""
+        ships_placed = []
+
+
+# Основной блок программы
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption("Морской бой")
     board = Board(10, 10)
+
+    # Загрузка изображения
+    pause_img = board.load_image("pause.png")
+    pause1 = pygame.transform.scale(pause_img, (50, 50))
 
     running = True
     while running:
@@ -115,10 +155,16 @@ if __name__ == "__main__":
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = event.pos
-                board.get_click(pos)
+                # Проверяем, был ли клик на кнопке паузы
+                if 0 <= pos[0] <= 50 and 0 <= pos[1] <= 50:
+                    board.pause = not board.pause  # Меняем состояние паузы
+                    print("Пауза:", board.pause)
+                else:
+                    board.get_click(pos)
 
-        screen.fill((200, 200, 200))  # Очистка экрана черным цветом
-        board.render(screen)   # Отрисовка сетки и состояния ячеек
+        screen.fill((200, 200, 200))
+        board.render(screen)
+        screen.blit(pause1, (0, 0))
         pygame.display.flip()  # Обновление экрана
 
     pygame.quit()
