@@ -131,7 +131,6 @@ class Board:
                              self.top - num_ver_height)
                             )
 
-
 class Ships:
     def __init__(self, board):
         self.board = board
@@ -147,15 +146,21 @@ class Ships:
 
     def create_next_ship(self):
         if self.current_ship_index < len(self.ships):
-            ship_size = self.ships[self.current_ship_index]
+            self.ship_size = self.ships[self.current_ship_index]
             x = self.board.left * 2
             y = self.board.height * self.board.cell_size + self.board.top + 50
 
             # Создаем прямоугольник для корабля
             if self.hor_ver:
-                self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+                #отрисовка корабля горизонтально
+                self.current_ship = pygame.Rect(
+                    x, y, self.ship_size * self.board.cell_size, self.board.cell_size
+                )
             else:
-                self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
+                #отприсовка корабля вертикально
+                self.current_ship = pygame.Rect(
+                    x, y, self.board.cell_size, self.ship_size * self.board.cell_size
+                )
         else:
             self.current_ship = None
 
@@ -178,9 +183,10 @@ class Ships:
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1 and self.dragging:
                 self.dragging = False
-                self.snap_to_grid()
-                if self.is_valid_placement():
+                is_snapped = self.snap_to_grid()
+                if is_snapped:
                     self.placed_ships.append(self.current_ship.copy())
+                    self.mark_neighbors()
                     self.current_ship_index += 1
                     self.create_next_ship()
                 else:
@@ -191,23 +197,96 @@ class Ships:
                 self.current_ship.x = mouse_x + self.offset_x
                 self.current_ship.y = mouse_y + self.offset_y
 
-    def snap_to_grid(self):  # correcting ship place
-        grid_x = round(  # left position in grid
+    def snap_to_grid(self):
+        # Вычисляем ближайшие координаты сетки
+        grid_x = round(
             (self.current_ship.x - self.board.left) / self.board.cell_size) * self.board.cell_size + self.board.left
-        grid_y = round(  # hight position for left part of ahip
+        grid_y = round(
             (self.current_ship.y - self.board.top) / self.board.cell_size) * self.board.cell_size + self.board.top
+
+        # Проверяем, что корабль не выходит за левую и верхнюю границы
+        if grid_x < self.board.left or grid_y < self.board.top:
+            return False
+        if grid_x + self.ship_size > self.board.left + board.cell_size * 10 or grid_y + self.ship_size > self.board.top + board.cell_size * 10:
+            return False
+
+        # Проверяем, что корабль не выходит за правую и нижнюю границы поля
+        if self.hor_ver:
+            # Для горизонтального корабля ширина уже рассчитана
+            if grid_x + self.current_ship.width > self.board.left + self.board.width * self.board.cell_size:
+                return False
+        else:
+            # Для вертикального корабля высота уже рассчитана
+            if grid_y + self.current_ship.height > self.board.top + self.board.height * self.board.cell_size:
+                return False
+
+        # Приводим координаты корабля к координатам сетки
         self.current_ship.x = grid_x
         self.current_ship.y = grid_y
 
-    def is_valid_placement(self):
-        # Проверка, находится ли корабль в пределах игрового поля
-        if (self.current_ship.left < self.board.left or
-                self.current_ship.right > self.board.left + self.board.width * self.board.cell_size or
-                self.current_ship.top < self.board.top or
-                self.current_ship.bottom > self.board.top + self.board.height * self.board.cell_size):
+        first_cell_x = int((grid_x - self.board.left) / self.board.cell_size)
+        first_cell_y = int((grid_y - self.board.top) / self.board.cell_size)
+        ship_size = self.ships[self.current_ship_index]
+
+        # Если место для установки корабля недоступно (занято или рядом уже есть другой корабль)
+        if not self.is_valid_placement(first_cell_x, first_cell_y, ship_size):
             return False
 
+        # Размещаем корабль на поле
+        self.place_ship(first_cell_x, first_cell_y, ship_size)
         return True
+
+    def is_valid_placement(self, start_x, start_y, ship_size):
+        """Проверяет, можно ли разместить корабль в заданной позиции."""
+        # Проверяем, что начальные координаты не выходят за левый или верхний край
+        if start_x < 0 or start_y < 0:
+            return False
+
+        if self.hor_ver:
+            # Проверка горизонтальной ориентации
+            if start_x + ship_size > self.board.width:
+                return False
+            for i in range(ship_size):
+                if self.board.board[start_y][start_x + i] != 1:
+                    return False
+        else:
+            # Проверка вертикальной ориентации
+            if start_y + ship_size > self.board.height:
+                return False
+            for i in range(ship_size):
+                if self.board.board[start_y + i][start_x] != 1:
+                    return False
+        return True
+
+    def place_ship(self, start_x, start_y, ship_size):
+        """Размещает корабль на поле."""
+        if self.hor_ver:
+            for i in range(ship_size):
+                self.board.board[start_y][start_x + i] = 0
+        else:
+            for i in range(ship_size):
+                self.board.board[start_y + i][start_x] = 0
+
+    def mark_neighbors(self):
+        """Расставляет -1 вокруг корабля, чтобы запрещать установку рядом других."""
+        start_x = (self.current_ship.x - self.board.left) // self.board.cell_size
+        start_y = (self.current_ship.y - self.board.top) // self.board.cell_size
+        ship_size = self.ships[self.current_ship_index]
+
+        # Для горизонтально расположенного корабля
+        if self.hor_ver:
+            x_range = range(start_x - 1, start_x + ship_size + 1)
+            y_range = range(start_y - 1, start_y + 2)
+        else:
+            # Для вертикально расположенного корабля
+            x_range = range(start_x - 1, start_x + 2)
+            y_range = range(start_y - 1, start_y + ship_size + 1)
+
+        for y in y_range:
+            for x in x_range:
+                if 0 <= x < self.board.width and 0 <= y < self.board.height:
+                    if self.board.board[y][x] == 1:
+                        self.board.board[y][x] = -1
 
     def reset_ship_position(self): # вернуть корабль на место(в начальное положение)
         ship_size = self.ships[self.current_ship_index]
@@ -215,9 +294,13 @@ class Ships:
         y = self.board.height * self.board.cell_size + self.board.top + 50
 
         if self.hor_ver:
-            self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+            self.current_ship = pygame.Rect(
+                x, y, ship_size * self.board.cell_size, self.board.cell_size
+            )
         else:
-            self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
+            self.current_ship = pygame.Rect(
+                x, y, self.board.cell_size, ship_size * self.board.cell_size
+            )
 
     def toggle_orientation(self): # смена поворота корабля
         if self.current_ship is not None:
@@ -228,11 +311,52 @@ class Ships:
             self.hor_ver = not self.hor_ver  # Переключаем ориентацию
 
             if self.hor_ver:
-                self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+                self.current_ship = pygame.Rect(
+                    x, y, ship_size * self.board.cell_size, self.board.cell_size
+                )
             else:
-                self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
+                self.current_ship = pygame.Rect(
+                    x, y, self.board.cell_size, ship_size * self.board.cell_size
+                )
+
+    def render(self, screen):
+
+        for ship in self.placed_ships:
+            pygame.draw.rect(screen, (0, 150, 0), ship)  # Зеленый цвет для размещенных кораблей
+        if self.current_ship:
+            pygame.draw.rect(screen, (70, 70, 70), self.current_ship)  # Серый цвет для текущего корабля
 
 
+# --- visual display of matrix values --- #
+class Button(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, text, color, hover_color, action=None):
+        super().__init__()
+        self.image = pygame.Surface([width, height])
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.text = text
+        self.font = pygame.font.Font(None, 30)
+        self.text_surf = self.font.render(text, True, (0, 0, 0))
+        self.text_rect = self.text_surf.get_rect(center=self.rect.center)
+        self.color = color
+        self.hover_color = hover_color
+        self.action = action
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+        screen.blit(self.text_surf, self.text_rect)
+
+    def update(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos):
+                self.image.fill(self.hover_color)
+            else:
+                self.image.fill(self.color)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos) and self.action is not None:
+                self.action()
 # Основной блок программы
 if __name__ == "__main__":
     pygame.init()
@@ -290,6 +414,8 @@ if __name__ == "__main__":
             board.render(screen)
             ships.draw_ships(screen)
             all_sprites.draw(screen)
+            ships.render(screen)
+
         else:
             rect_surface = pygame.Surface((width, height), pygame.SRCALPHA)
             pygame.draw.rect(rect_surface, (100, 100, 100, 15), (0, 0, width, height))
@@ -297,6 +423,7 @@ if __name__ == "__main__":
             pause_text = board.font2.render("Пауза", False, (255, 255, 255))
             pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 200))
             screen.blit(pause_text, pause_rect)
+            screen.blit(pause_img, (0, 0))
 
         pygame.display.flip()  # Обновление экрана
 
