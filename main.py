@@ -3,8 +3,9 @@ import sys
 import os
 
 # Размер окна
-size = width, height = 1400, 900
+size = width, height = 1350, 900
 
+clock = pygame.time.Clock()
 
 class Board:
     def __init__(self, width, height):
@@ -16,8 +17,10 @@ class Board:
         self.left = 100
         self.top = 100
         self.cell_size = 50
-        self.font_size = int(self.cell_size / 1.5)
-        self.font = pygame.font.SysFont('notosans', self.font_size)
+        self.font_size1 = int(self.cell_size / 1.5)
+        self.font_size2 = int(self.cell_size * 2)
+        self.font = pygame.font.SysFont('notosans', self.font_size1)
+        self.font2 = pygame.font.SysFont(None, self.font_size2)
         self.pause = False  # Добавляем переменную pause в класс Board
 
     def load_image(self, name, colorkey=None, size=None):
@@ -206,7 +209,7 @@ class Ships:
 
         return True
 
-    def reset_ship_position(self):
+    def reset_ship_position(self): # вернуть корабль на место(в начальное положение)
         ship_size = self.ships[self.current_ship_index]
         x = self.board.left * 2
         y = self.board.height * self.board.cell_size + self.board.top + 50
@@ -216,7 +219,7 @@ class Ships:
         else:
             self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
 
-    def toggle_orientation(self):
+    def toggle_orientation(self): # смена поворота корабля
         if self.current_ship is not None:
             ship_size = self.ships[self.current_ship_index]
             x = self.current_ship.x
@@ -261,6 +264,10 @@ if __name__ == "__main__":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:
+                    board.pause = not board.pause
+                    print("Пауза:", board.pause)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = event.pos
                 # Проверяем, был ли клик на кнопке паузы
@@ -268,16 +275,29 @@ if __name__ == "__main__":
                     board.pause = not board.pause  # Меняем состояние паузы
                     print("Пауза:", board.pause)
                 elif turn_sprite.rect.collidepoint(pos):
-                    ships.toggle_orientation()
-                    print("Поворот: ", ships.hor_ver)
+                    if board.pause is False:
+                        ships.toggle_orientation()
+                        print("Поворот: ", ships.hor_ver)
                 else:
-                    board.get_click(pos)
-            ships.handle_event(event)
+                    if board.pause is False:
+                        board.get_click(pos)
 
-        screen.fill((200, 200, 200))
-        board.render(screen)
-        ships.draw_ships(screen)
-        all_sprites.draw(screen)
+            if not board.pause:
+                ships.handle_event(event)
+
+        if not board.pause:
+            screen.fill((200, 200, 200))
+            board.render(screen)
+            ships.draw_ships(screen)
+            all_sprites.draw(screen)
+        else:
+            rect_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.rect(rect_surface, (100, 100, 100, 15), (0, 0, width, height))
+            screen.blit(rect_surface, (0, 0))
+            pause_text = board.font2.render("Пауза", False, (255, 255, 255))
+            pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 200))
+            screen.blit(pause_text, pause_rect)
+
         pygame.display.flip()  # Обновление экрана
 
     pygame.quit()
