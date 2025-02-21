@@ -3,7 +3,8 @@ import sys
 import os
 
 # Размер окна
-size = width, height = 1400, 800
+size = width, height = 1400, 900
+
 
 class Board:
     def __init__(self, width, height):
@@ -19,12 +20,14 @@ class Board:
         self.font = pygame.font.SysFont('notosans', self.font_size)
         self.pause = False  # Добавляем переменную pause в класс Board
 
-    def load_image(self, name, colorkey=None):
+    def load_image(self, name, colorkey=None, size=None):
         fullname = os.path.join('data', name)
         if not os.path.isfile(fullname):
             print(f"Файл с изображением '{fullname}' не найден")
             sys.exit()
         image = pygame.image.load(fullname)
+        if size is not None:
+            image = pygame.transform.scale(image, size)
         if colorkey is not None:
             image = image.convert()
             if colorkey == -1:
@@ -94,7 +97,6 @@ class Board:
                 )
                 pygame.draw.rect(screen, (0, 0, 0), rect2, 1)
 
-
             if y < len(letters):
                 num_ver = self.font.render(str(y + 1), True, (0, 0, 0))
                 letters_hor = self.font.render(letters[y], True, (0, 0, 0))
@@ -125,7 +127,6 @@ class Board:
                              self.cell_size * 13,
                              self.top - num_ver_height)
                             )
-                #pygame.draw.rect(screen, (0, 0, 255), ())
 
 
 class Ships:
@@ -133,7 +134,7 @@ class Ships:
         self.board = board
         self.ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         self.current_ship_index = 0
-        self.hor_ver = 0  # 0 - горизонтально, 1 - вертикально
+        self.hor_ver = True  # True - горизонтально, False - вертикально
         self.current_ship = None
         self.dragging = False
         self.offset_x = 0
@@ -144,23 +145,22 @@ class Ships:
     def create_next_ship(self):
         if self.current_ship_index < len(self.ships):
             ship_size = self.ships[self.current_ship_index]
-            x = self.board.left
-            y = self.board.height * self.board.cell_size + self.board.top + 20
-            self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+            x = self.board.left * 2
+            y = self.board.height * self.board.cell_size + self.board.top + 50
+
+            # Создаем прямоугольник для корабля
+            if self.hor_ver:
+                self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+            else:
+                self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
         else:
             self.current_ship = None
 
     def draw_ships(self, screen):
         for ship in self.placed_ships:
-            x = ship[0] // 50 - 2 # это точка в таблице board на которой стоит первая часть корабля
-            y = ship[1] // 50 - 2 # это высота первой часть корабля
-            # if self.hor_ver == 0:
-            #     lenth = ship[2] // 50 - x + 1 # длинна размещённого корабля
-            #     for i in range(lenth):
-            #         board[y][x + i] = 1
-            pygame.draw.rect(screen, (0, 255, 0), ship)  # Синий цвет для размещенных кораблей
+            pygame.draw.rect(screen, (0, 150, 0), ship)  # Зелёный цвет для размещенных кораблей
         if self.current_ship:
-            pygame.draw.rect(screen, (0, 0, 0), self.current_ship)  # Черный цвет для текущего корабля
+            pygame.draw.rect(screen, (70, 70, 70), self.current_ship)  # Серый цвет для текущего корабля
 
     def handle_event(self, event):
         if self.current_ship is None:
@@ -188,10 +188,10 @@ class Ships:
                 self.current_ship.x = mouse_x + self.offset_x
                 self.current_ship.y = mouse_y + self.offset_y
 
-    def snap_to_grid(self):
-        grid_x = round(
+    def snap_to_grid(self):  # correcting ship place
+        grid_x = round(  # left position in grid
             (self.current_ship.x - self.board.left) / self.board.cell_size) * self.board.cell_size + self.board.left
-        grid_y = round(
+        grid_y = round(  # hight position for left part of ahip
             (self.current_ship.y - self.board.top) / self.board.cell_size) * self.board.cell_size + self.board.top
         self.current_ship.x = grid_x
         self.current_ship.y = grid_y
@@ -207,8 +207,27 @@ class Ships:
         return True
 
     def reset_ship_position(self):
-        self.current_ship.x = self.board.left
-        self.current_ship.y = self.board.height * self.board.cell_size + self.board.top + 20
+        ship_size = self.ships[self.current_ship_index]
+        x = self.board.left * 2
+        y = self.board.height * self.board.cell_size + self.board.top + 50
+
+        if self.hor_ver:
+            self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+        else:
+            self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
+
+    def toggle_orientation(self):
+        if self.current_ship is not None:
+            ship_size = self.ships[self.current_ship_index]
+            x = self.current_ship.x
+            y = self.current_ship.y
+
+            self.hor_ver = not self.hor_ver  # Переключаем ориентацию
+
+            if self.hor_ver:
+                self.current_ship = pygame.Rect(x, y, ship_size * self.board.cell_size, self.board.cell_size)
+            else:
+                self.current_ship = pygame.Rect(x, y, self.board.cell_size, ship_size * self.board.cell_size)
 
 
 # Основной блок программы
@@ -219,9 +238,23 @@ if __name__ == "__main__":
     board = Board(10, 10)
     ships = Ships(board)
 
-    # Загрузка изображения
-    pause_img = board.load_image("pause.png")
-    pause1 = pygame.transform.scale(pause_img, (50, 50))
+    all_sprites = pygame.sprite.Group()
+
+    pause_img = board.load_image("pause.png", size=(50, 50), colorkey=-1)
+    pause_sprite = pygame.sprite.Sprite(all_sprites)
+    pause_sprite.image = pause_img
+    pause_sprite.rect = pause_sprite.image.get_rect()
+    pause_sprite.rect.x = 0
+    pause_sprite.rect.y = 0
+    all_sprites.add(pause_sprite)
+
+    turn_img = board.load_image("turn.png", size=(50, 50), colorkey=-1)
+    turn_sprite = pygame.sprite.Sprite(all_sprites)
+    turn_sprite.image = turn_img
+    turn_sprite.rect = turn_sprite.image.get_rect()
+    turn_sprite.rect.x = (board.left)
+    turn_sprite.rect.y = 650
+    all_sprites.add(turn_sprite)
 
     running = True
     while running:
@@ -231,9 +264,12 @@ if __name__ == "__main__":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = event.pos
                 # Проверяем, был ли клик на кнопке паузы
-                if 0 <= pos[0] <= 50 and 0 <= pos[1] <= 50:
+                if pause_sprite.rect.collidepoint(pos):
                     board.pause = not board.pause  # Меняем состояние паузы
                     print("Пауза:", board.pause)
+                elif turn_sprite.rect.collidepoint(pos):
+                    ships.toggle_orientation()
+                    print("Поворот: ", ships.hor_ver)
                 else:
                     board.get_click(pos)
             ships.handle_event(event)
@@ -241,7 +277,7 @@ if __name__ == "__main__":
         screen.fill((200, 200, 200))
         board.render(screen)
         ships.draw_ships(screen)
-        screen.blit(pause1, (0, 0))
+        all_sprites.draw(screen)
         pygame.display.flip()  # Обновление экрана
 
     pygame.quit()
